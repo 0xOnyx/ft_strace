@@ -17,11 +17,24 @@ int main(int argc, char **argv){
 
 	child_pid = fork();
 	if (child_pid == 0){
-		ptrace(PTRACE_SEIZE)
+        raise(SIGSTOP);
 		execvp(argv[1], argv+1);
 		return (0);
 	}
-	wait(NULL);
+
+    ptrace(PTRACE_SEIZE, child_pid, NULL, NULL);
+    ptrace(PTRACE_INTERRUPT, child_pid, NULL, NULL);
+
+    int wait_status;
+
+    waitpid(child_pid, &wait_status, 0);
+
+
+    if (WIFSTOPPED(wait_status)) {
+        printf("Process %d stopped, signal %d\n", child_pid, WSTOPSIG(wait_status));
+    }
+
+    ptrace(PTRACE_SYSCALL, child_pid, 0, 0);
 
 	return (0);
 }
