@@ -12,7 +12,7 @@
 #include <sys/uio.h>
 #include <sys/user.h>
 #include <stdarg.h>
-#include "syscall.h"
+#include "include/syscall.h"
 #include <stdbool.h>
 #include <string.h>
 #include <sys/uio.h>
@@ -151,21 +151,19 @@ void print_ret(long ret, t_syscall syscall){
         fprintf(stderr," = %#lx\n", ret);
 }
 
-void handle_syscall(pid_t child_pid, struct {
-    bool result;
-    bool start;
-    } *handler){
+void handle_syscall(pid_t child_pid, t_handle *handler){
 
-    static t_syscall syscall_tab[] = {
+    static t_syscall syscall_tab_x86[] = {
         #include "syscall_x86_tables.h"
+    };
+    static t_syscall syscall_tab_x86_64[] = {
+        #include "syscall_i386_tables.h"
     };
     struct iovec x86_io;
     union {
         struct user_regs_struct reg;
         struct i386_user_regs_struct i386_reg;
     } regs;
-
-
 
     x86_io.iov_base = &regs;
     x86_io.iov_len = sizeof(regs);
@@ -175,21 +173,33 @@ void handle_syscall(pid_t child_pid, struct {
         if (regs.reg.orig_rax == 59) {
             handler->start = true;
         }
-        if (start) {
+        if (handler->start) {
             if (!handler->result) {
                 print_syscall(child_pid,
-                              syscall_tab[regs.reg.orig_rax],
-                              regs.reg.rdi, regs.reg.rsi, regs.reg.rdx, regs.reg.r10, regs.reg.r8, regs.reg.r9);
+                  syscall_tab_x86[regs.reg.orig_rax],
+                  regs.reg.rdi, regs.reg.rsi, regs.reg.rdx, regs.reg.r10, regs.reg.r8, regs.reg.r9);
                 handler->result = true;
             } else {
-                print_ret(regs.reg.rax, syscall_tab[regs.reg.orig_rax]);
+                print_ret(regs.reg.rax, syscall_tab_x86[regs.reg.orig_rax]);
                 handler->result = false;
             }
         }
     }
     else {
         if (regs.i386_reg.orig_eax == 11){
-
+            handler->start = true;
+        }
+        if (handler->start){
+            if (!handler->result){
+                print_syscall(child_pid,
+                  syscall_tab_x86[regs.i386_reg.orig_eax],
+                  regs.i386_reg.ebx, regs.i386_reg.ecx, regs.i386_reg.edx, regs.i386_reg.esi, regs.i386_reg.edi, regs.i386_reg.ebp);
+                handler->result = true;
+            }
+            else{
+                print_ret(regs.i386_reg.eax, syscall_tab_x86[regs.i386_reg.orig_eax]);
+                handler->result = false;
+            }
         }
 
     }
@@ -198,19 +208,20 @@ void handle_syscall(pid_t child_pid, struct {
 void get_syscall(pid_t child_pid){
     int wait_status;
     int signal;
-    struct {
-        bool result;
-        bool start;
-    } handler = {false, false};
+    t_handle handler = {false, false};
 
+    fprintf(stderr, "[+]\tget_syscall\n");
     while(1){
         ptrace(PTRACE_SYSCALL, child_pid, 0, signal);
+
+        fprintf(stderr, "[+]\twaitpid => %d\n", child_pid);
         waitpid(child_pid, &wait_status, 0);
+        fprintf(stderr, "[+]\twaitpid 2\n");
         if (WIFEXITED(wait_status))
             break;
 
         siginfo_t sig;
-        if (start && !ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &sig)
+        if (handler.start && !ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &sig)
             && sig.si_signo != SIGTRAP){
             signal = sig.si_signo;
             fprintf(stderr, "SIGNAL => %d\n", signal);
@@ -234,6 +245,7 @@ void block_signals(){
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGTERM);
     sigprocmask(SIG_BLOCK, &set, NULL);
+    fprintf(stderr, "[+]\tblock signals\n");
 }
 
 void attach_process(pid_t child_pid){
@@ -243,9 +255,9 @@ void attach_process(pid_t child_pid){
         perror("error with ptrace\n");
 
     int wait_status;
-    fprintf(stderr, "[+]\twait pid \n");
+    fprintf(stderr, "[+]\twait pid d => %d\n", child_pid);
     waitpid(child_pid, &wait_status, 0);
-
+    fprintf(stderr, "[+]\twait pid 2\n");
     if (WIFSTOPPED(wait_status)) {
         fprintf(stderr, "[+]\tProcess %d stopped, signal %d\n", child_pid, WSTOPSIG(wait_status));
     }
@@ -269,7 +281,4 @@ int main(int argc, char **argv, char **envp){
 
     fprintf(stderr, "\nFINISH EXEC\n");
 	return (0);
-
-
-
 }

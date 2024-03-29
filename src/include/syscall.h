@@ -1,6 +1,8 @@
 #ifndef FT_STRACE_SYSCALL_H
 #define FT_STRACE_SYSCALL_H
 
+#include <stdbool.h>
+
 #define MAX_ARGS 6
 
 enum e_type_syscall {
@@ -36,6 +38,10 @@ typedef struct syscall_s {
     enum e_type_syscall ret;
 } t_syscall;
 
+typedef struct handle_s {
+    bool start;
+    bool result;
+} t_handle;
 
 struct i386_user_regs_struct
 {
