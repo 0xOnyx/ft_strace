@@ -25,10 +25,6 @@ enum e_type_syscall {
     T_STR,
     T_UNKNOWN,
 
-    T_CADDR_T,
-    T_SIGHANDLER_T,
-    T_E_PTRACE_REQUEST,
-
     T_NONE
 };
 
@@ -45,23 +41,23 @@ typedef struct handle_s {
 
 struct i386_user_regs_struct
 {
-    long int ebx;
-    long int ecx;
-    long int edx;
-    long int esi;
-    long int edi;
-    long int ebp;
-    long int eax;
-    long int xds;
-    long int xes;
-    long int xfs;
-    long int xgs;
-    long int orig_eax;
-    long int eip;
-    long int xcs;
-    long int eflags;
-    long int esp;
-    long int xss;
+    int ebx;
+    int ecx;
+    int edx;
+    int esi;
+    int edi;
+    int ebp;
+    int eax;
+    int xds;
+    int xes;
+    int xfs;
+    int xgs;
+    int orig_eax;
+    int eip;
+    int xcs;
+    int eflags;
+    int esp;
+    int xss;
 };
 
 #endif //FT_STRACE_SYSCALL_H
